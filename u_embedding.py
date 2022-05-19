@@ -1,3 +1,5 @@
+from asyncio import exceptions
+
 from metrics import hellinger
 from umap import UMAP
 import pandas as pd
@@ -25,7 +27,7 @@ def dim_reduction(vector_matrix, kwargs):
     """
 
     if kwargs.get("umap_metric") == 'hellinger':
-        umap_metric = hellinger
+        umap_metric = hellinger  # todo me falla, porque parece que recibe 4 argumentos...
     elif kwargs.get("umap_metric") == 'cosine':
         umap_metric = 'cosine'
     else:
@@ -134,8 +136,8 @@ def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=Non
             ax.add_artist(legend1)
 
     # produce a legend with the unique colors from the scatter
-    # legend1 = ax.legend(*scatter.legend_elements(), loc="best", title="Cluster")
-    # ax.add_artist(legend1)
+    legend1 = ax.legend(*scatter.legend_elements(), loc="best", title="Cluster")
+    ax.add_artist(legend1)
 
     n_samples = str(df_2.shape[0])
     plt.title(title + ' Samples ' + n_samples)
@@ -383,3 +385,47 @@ def _simple_imp(df, variables, strat):
     df2 = pd.DataFrame(r, columns=df2.columns, index=df2.index)
 
     return df2
+
+
+def umap_scan(vector_matrix, nvecs, dmins, di, path='data_med/umaps/', metrics=['cosine']):
+    """
+hace un barrido por los parámetros que se le dan y guarda las gráficas.
+lo almacena en el diccionario di que se le da para actualizarlo
+    :param vector_matrix:
+    :param nvecs:
+    :param dmins:
+    :param di:
+    :param path:
+    :param metrics:
+    """
+    # nvecs = [7, 15, 20, 30, 40, 50]
+    # dmins = [.1, .3, .5, .7, 1]
+    di2 = {}
+    for me in metrics:
+        # if me == 'hellinger':
+        #     mef = hellinger
+        # else:
+        #     mef = me
+
+        for nve in nvecs:
+            for dmin in dmins:
+                print('po')
+                name = str(nve) + '_' + str(dmin) + '_' + me
+                print(name)
+
+                params_u = {
+                    "umap_metric":      me,
+                    "umap_n_neighbors": nve,
+                    "umap_min_dist":    dmin
+                }
+                print(params_u)
+                umap_matrix = dim_reduction(vector_matrix, params_u)
+                di2[name] = {'params': params_u, 'umap': umap_matrix}
+
+                plot_umap(as_df(umap_matrix), name, path)
+
+    di.update(di2)
+
+
+def as_df(array):
+    return pd.DataFrame(array, columns=['UMAP_x', 'UMAP_y'])

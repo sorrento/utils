@@ -50,21 +50,13 @@ def read_json(json_file):
 
 
 def get_now():
-    ct = now()
+    import datetime
+
+    ct = datetime.datetime.now()
     # ts = ct.timestamp()
     # print("timestamp:-", ts)
 
     return str(ct)  # podríamos quedarnos con el objeton (sin str)
-
-
-def now():
-    import datetime
-    return datetime.datetime.now()
-
-
-def get_now_format(f="%Y%m%d"):
-    ct = now()
-    return ct.strftime(f)
 
 
 def flatten(lista):
@@ -103,3 +95,16 @@ def abslog(x):
     else:
         y = log10p(x)
     return y
+
+
+def save_df(df, path, name, save_index=False, append_size=True):
+    if append_size:
+        middle = '_' + str(round(df.shape[0] / 1000)) + 'k_' + str(df.shape[1])
+    else:
+        middle = ''
+
+    filename = path + name + middle + '.csv'
+    print('** Guardando dataset en {}'.format(filename))
+    df.to_csv(filename, index=save_index)
+
+    return filename
