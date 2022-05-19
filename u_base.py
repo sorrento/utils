@@ -14,10 +14,10 @@ def make_folder(path):
 
 
 def inicia(texto):
-    now = time.time()
+    ahora = time.time()
     print('** Iniciando: {}'.format(texto))
 
-    return [now, texto]
+    return [ahora, texto]
 
 
 def tardado(lista: list):
@@ -50,13 +50,21 @@ def read_json(json_file):
 
 
 def get_now():
-    import datetime
-
-    ct = datetime.datetime.now()
+    ct = now()
     # ts = ct.timestamp()
     # print("timestamp:-", ts)
 
     return str(ct)  # podríamos quedarnos con el objeton (sin str)
+
+
+def now():
+    import datetime
+    return datetime.datetime.now()
+
+
+def get_now_format(f="%Y%m%d"):
+    ct = now()
+    return ct.strftime(f)
 
 
 def flatten(lista):
