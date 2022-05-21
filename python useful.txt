@@ -1,0 +1,10 @@
+"jupytext": {
+    "formats": "ipynb,py"
+  },
+
+
+
+%load_ext autoreload
+%autoreload 2
+
+from IPython.core.display import display

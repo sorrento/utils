@@ -46,3 +46,9 @@ bob = [81, 30, 75, 37, 46]
     plt.legend()
     plot_save(write_png, folder, filename)
     plt.show()
+
+
+def plot_hist(lista, bins=10):
+    import matplotlib.pyplot as plt
+    # create histogram from list of data
+    plt.hist(lista, bins=bins)
