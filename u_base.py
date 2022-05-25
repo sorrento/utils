@@ -37,8 +37,9 @@ def save_json(dic, path, datos_desc=''):
     :param datos_desc: sólo para mostrar en un print
     """
     import json
-    print('** Guardado los datos ' + datos_desc + ' en {}'.format(path))
-    with open(path, 'w', encoding="utf-8") as outfile:
+    path2 = path + '.json'
+    print('** Guardado los datos ' + datos_desc + ' en {}'.format(path2))
+    with open(path2, 'w', encoding="utf-8") as outfile:
         json.dump(dic, outfile, ensure_ascii=False)
 
 
@@ -63,6 +64,11 @@ def now():
 
 
 def get_now_format(f="%Y%m%d"):
+    """
+
+    :param f: ver https://pythonexamples.org/python-datetime-format/
+    :return:
+    """
     ct = now()
     return ct.strftime(f)
 
