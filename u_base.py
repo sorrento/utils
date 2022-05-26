@@ -1,4 +1,11 @@
 import time
+from datetime import datetime
+import numpy as np
+
+FORMAT_DATE = "%Y%m%d"
+FORMAT_DATETIME = '%Y-%m-%d %H:%M:%S.%f'
+FORMAT_UTC = '%Y-%m-%dT%H:%M:%S.%fZ'
+FORMAT_UTC2 = '%Y-%m-%d %H:%M:%S.%f+00:00'
 
 
 def make_folder(path):
@@ -50,26 +57,32 @@ def read_json(json_file):
     return data
 
 
-def get_now():
-    ct = now()
+def get_now(utc=False):
+    ct = now(utc)
     # ts = ct.timestamp()
     # print("timestamp:-", ts)
 
     return str(ct)  # podríamos quedarnos con el objeton (sin str)
 
 
-def now():
-    import datetime
-    return datetime.datetime.now()
+def now(utc=False):
+    from datetime import timezone, datetime
+    if utc:
+        tz = timezone.utc
+    else:
+        tz = None
+
+    return datetime.now(tz)
 
 
-def get_now_format(f="%Y%m%d"):
+def get_now_format(f=FORMAT_DATE, utc=False):
     """
 
+    :param utc:
     :param f: ver https://pythonexamples.org/python-datetime-format/
     :return:
     """
-    ct = now()
+    ct = now(utc)
     return ct.strftime(f)
 
 
@@ -122,3 +135,46 @@ def save_df(df, path, name, save_index=False, append_size=True):
     df.to_csv(filename, index=save_index)
 
     return filename
+
+
+def time_from_str(s, formato):
+    return datetime.strptime(s, formato)
+
+
+def time_to_str(t, formato):
+    return t.strftime(formato)
+
+
+def seq_len(ini, n, step):
+    """
+crea una secuencia de n enteros, a distancia step
+    :param n:
+    :param step:
+    :param ini:
+    :return:
+    """
+    end = ini + step * (n + 1)
+    return list(np.arange(ini, end, step)[:n])
+
+
+def nearest(x, lista):
+    """
+devuelve el número más cercano a x de la lista
+    :param x:
+    :param lista:
+    :return:
+    """
+    deltas = [abs(s - x) for s in lista]
+    pos = list_min_pos(deltas)
+
+    return lista[pos]
+
+
+def list_min_pos(lista):
+    """
+da la (primera) posición del elemento más pequeño
+    :param lista:
+    :return:
+    """
+    mi = min(lista)
+    return lista.index(mi)

@@ -3,6 +3,8 @@
   },
 
 
+from platform import python_version
+python_version ()
 
 %load_ext autoreload
 %autoreload 2
