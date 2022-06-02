@@ -10,3 +10,21 @@ python_version ()
 %autoreload 2
 
 from IPython.core.display import display
+
+
+# ejemplos de hilos
+import threading
+def princ(hilo):
+    from u_base import now
+    for i in range(5):
+        print(hilo, now())
+        time.sleep(1)
+
+    return hilo
+t1 = threading.Thread(target=princ, args=('A'))
+t2 = threading.Thread(target=princ, args=('B'))
+threads = [t1, t2]
+t1.start()
+t2.start()
+t1.join()
+t2.join()
