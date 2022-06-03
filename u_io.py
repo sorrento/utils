@@ -53,6 +53,12 @@ obtiene el nombre del fichero desde el path completo
     return os.path.basename(path)
 
 
+def escribe_txt(txt, file_path):
+    text_file = open(file_path, "wt")
+    n = text_file.write(txt)
+    text_file.close()
+
+
 def lee_txt(file_path):
     """
 lee fichero de texto

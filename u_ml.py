@@ -1,11 +1,16 @@
-from sklearn.preprocessing import StandardScaler
-from tensorflow.keras import models, losses
-from tensorflow.python.keras import Input
-from tensorflow.python.keras.layers import Conv1D, Multiply, Add, Dense
-from tensorflow.python.keras.optimizer_v2.adam import Adam
+import pickle
+
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
+from IPython.core.display import display
+from matplotlib import pyplot as plt
+from sklearn import metrics as me
+from sklearn.metrics import roc_curve, confusion_matrix
 
 
 def standardize_function(X_train):
+    from sklearn.preprocessing import StandardScaler
     df_scaled = pd.DataFrame(StandardScaler().fit_transform(X_train), columns=X_train.columns)
     return df_scaled
 
@@ -18,6 +23,11 @@ entrena una wavenet
     :param n_out: número de clases
     :return:
     """
+
+    from tensorflow.keras import models, losses
+    from tensorflow.python.keras import Input
+    from tensorflow.python.keras.layers import Conv1D, Multiply, Add, Dense
+    from tensorflow.python.keras.optimizer_v2.adam import Adam
 
     def wave_block(x, filters, kernel_size, n):
         dilation_rates = [2 ** i for i in range(n)]
@@ -60,18 +70,6 @@ entrena una wavenet
     return model
 
 
-import pickle
-
-import lightgbm as lgb
-import numpy as np
-import pandas as pd
-from IPython.core.display import display
-from matplotlib import pyplot as plt
-from sklearn import metrics as me
-from sklearn.metrics import roc_curve, confusion_matrix
-from sklearn.model_selection import KFold
-
-
 def _best_f1(y_true, probs):
     import sklearn.metrics as me
     import numpy as np
@@ -89,11 +87,7 @@ def _best_f1(y_true, probs):
     return th
 
 
-def plot_confusion_matrix(cm, classes,
-                          normalize=False,
-                          msg='',
-                          th=None,
-                          cmap=plt.cm.Blues):
+def plot_confusion_matrix(cm, classes, normalize=False, msg='', th=None, cmap=plt.cm.Blues):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
@@ -115,37 +109,7 @@ def plot_confusion_matrix(cm, classes,
     pinta_cm(cm, classes, cmap, fmt, title)
 
 
-def pinta_cm2(y_test, y_pred, clases):
-    cm1 = confusion_matrix(y_test, y_pred)
-    cm = cm1
-    pinta_cm(cm, clases)
-
-
-def pinta_cm(cm, classes, cmap=plt.cm.Blues, fmt='d', title=''):
-    import itertools
-
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    # plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, format(cm[i, j], fmt),
-                 horizontalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
-    plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.show()
-
-
-def plot_confusion_matrix2(cm, ax, classes,
-                           normalize=False,
-                           msg='',
-                           th=None,
-                           cmap=plt.cm.Blues):
+def plot_confusion_matrix2(cm, ax, classes, normalize=False, msg='', th=None, cmap=plt.cm.Blues):
     """
     pensada para incorporarla a otros, plot, por eso el ax
     This function prints and plots the confusion matrix.
@@ -183,7 +147,33 @@ def plot_confusion_matrix2(cm, ax, classes,
     # ax.tight_layout()
     ax.set_ylabel('True label')
     ax.set_xlabel('Predicted label')
-    # plt.show()
+    # plt.show()<
+
+
+def pinta_cm2(y_test, y_pred, clases):
+    cm1 = confusion_matrix(y_test, y_pred)
+    cm = cm1
+    pinta_cm(cm, clases)
+
+
+def pinta_cm(cm, classes, cmap=plt.cm.Blues, fmt='d', title=''):
+    import itertools
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    # plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.show()
 
 
 def plot_hist(pred, y_test, msg='', th=None, log=False):
@@ -428,6 +418,8 @@ in data with the prediction of p model for its fold
         :param params:
         :param kwargs:
         """
+        from sklearn.model_selection import KFold
+
         self.is_binary = (len(Y_data.value_counts()) == 2)
 
         kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
