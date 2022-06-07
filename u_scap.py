@@ -1,6 +1,7 @@
-from u_base import make_folder, inicia, tardado, get_now
+import pandas as pd
+import requests
 
-from utils import lee_pagina
+from u_base import make_folder, inicia, tardado, get_now
 
 
 def google_search(query, filetype=None, only_webpages=False):
@@ -169,3 +170,48 @@ trae el texto de una página web
     doc, html_txt, cuerpo = lee_pagina(url)
     j = {'title': doc.title(), 'body': cuerpo}
     return j
+
+
+def lee_pagina(url):
+    from readability import Document
+    usr_agent = {
+        # 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36'}
+
+    response = requests.get(url=url,
+                            headers=usr_agent)
+    doc = Document(response.text)
+    # print('***** TITULO:\n', doc.title())
+
+    html_txt = doc.summary()
+
+    cuerpo = remove_tags(html_txt)
+    # print('\n\n***** CUERPO:\n', cuerpo)
+    return doc, html_txt, cuerpo
+
+
+def remove_tags(text):
+    import re
+    TAG_RE = re.compile(r'<[^>]+>')
+    b = TAG_RE.sub('', text)
+
+    # saltod de página y tabs, espacios seguidos
+    TT = re.compile(r'\s{2,}')
+    c = TT.sub('\n', b)
+    return c
+
+
+def df_from_json(j):
+    """
+transforma en pandas df el json emitido por serpapi
+    :rtype: object
+    """
+    q = j['search_parameters']['q']
+    date_q = j['search_metadata']['created_at']
+    di = {n['position']: n for n in j['news_results']}
+    df = pd.DataFrame.from_dict(di, orient='index').drop(columns='position')
+
+    df['timestamp'] = date_q
+    df['q'] = q
+
+    return df
