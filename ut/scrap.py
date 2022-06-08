@@ -1,7 +1,7 @@
 import pandas as pd
 import requests
 
-from u_base import make_folder, inicia, tardado, get_now
+from ut.base import make_folder, inicia, tardado, get_now
 
 
 def google_search(query, filetype=None, only_webpages=False):
@@ -17,6 +17,7 @@ https://pypi.org/project/googlesearch-python/
         from googlesearch import search
     except ImportError:
         print("No module named 'google' found")
+        return None
 
     t = inicia('Google search')
 
