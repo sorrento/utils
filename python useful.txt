@@ -12,6 +12,11 @@ python_version ()
 from IPython.core.display import display
 
 
+# Editable dataframes (interactivos
+    import ipysheet
+    sheet = ipysheet.from_dataframe(df);sheet
+    df=ipysheet.to_dataframe(sheet) #recuperar el valor
+
 # ejemplos de hilos
 import threading
 def princ(hilo):
