@@ -12,13 +12,15 @@ Para que cargue sin errores los `display`
 
     from IPython.core.display import display
 
-## 1. Para que sincronice un fichero `.py` con el `.pynb`, poner esto en el metadata
+## 1. Sincronización
+ Para que sincronice un fichero `.py` con el `.pynb`, poner esto en el metadata
 
     "jupytext": {
     "formats": "ipynb,py"
     },
 
 ## 2. Nuevo kernel en jupyter
+Escribir esto en la consola de anaconda
 
 `ipython kernel install --name “data-science” --user`
 
@@ -45,3 +47,9 @@ Para que cargue sin errores los `display`
     t2.start()
     t1.join()
     t2.join()
+
+# CUDA
+installing pytorch
+    https://blog.machinfy.com/installing-pytorch/
+
+    torch.cuda.is_available()
