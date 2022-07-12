@@ -36,7 +36,7 @@ def tardado(lista: list):
     return elapsed
 
 
-def save_json(dic, path, datos_desc=''):
+def json_save(dic, path, datos_desc=''):
     """
 
     :param dic:
@@ -50,7 +50,7 @@ def save_json(dic, path, datos_desc=''):
         json.dump(dic, outfile, ensure_ascii=False)
 
 
-def read_json(json_file):
+def json_read(json_file):
     import json
     with open(json_file, encoding="utf-8") as in_file:
         data = json.load(in_file)

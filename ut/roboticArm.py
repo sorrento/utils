@@ -5,7 +5,7 @@ import pandas as pd
 from IPython.core.display import display
 
 from ut import lss_const, lss
-from ut.base import now, save_json, read_json, time_to_str, FORMAT_DATETIME, save_df
+from ut.base import now, json_save, json_read, time_to_str, FORMAT_DATETIME, save_df
 from ut.io import escribe_txt
 from ut.lss_const import d_status
 
@@ -146,11 +146,11 @@ creación de movimientos random
         display(self.get_df_moves())
 
     def save(self, path='data_in/patrones/'):
-        save_json(self.moves, path + 'move_' + self.name)
+        json_save(self.moves, path + 'move_' + self.name)
 
     def load(self, path, verbatim=False):
         self.name = path.split('/')[-1].split('.')[0].split('_')[-1]
-        self.moves = read_json(path)
+        self.moves = json_read(path)
         if verbatim:
             print('Movimiento llamado: {}'.format(self.name))
             display(self.get_df_moves())
@@ -222,7 +222,7 @@ class Experimento:
         escribe_txt(tx, path + name2 + '.txt')
 
         # movimientos reales realizados (considerando la variación aleatoria y shift de la base
-        save_json(dic=self.d_moves_done, path=path + name2 + '_real')
+        json_save(dic=self.d_moves_done, path=path + name2 + '_real')
 
 
 def get_status(myLSS, name="Telemetry", imprime=True):
