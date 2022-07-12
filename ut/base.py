@@ -8,14 +8,14 @@ FORMAT_UTC = '%Y-%m-%dT%H:%M:%S.%fZ'
 FORMAT_UTC2 = '%Y-%m-%d %H:%M:%S.%f+00:00'
 
 
-def make_folder(path):
+def make_folder(path, verbose=True):
     import os
     try:
         if not os.path.isdir(path):
             print('Creando directorio ', path)
             os.mkdir(path)
         else:
-            print('Ya existe: {}'.format(path))
+            if verbose: print('Ya existe: {}'.format(path))
     except OSError:
         print('Ha fallado la creación de la carpeta %s' % path)
 
@@ -126,7 +126,7 @@ def abslog(x):
 
 def save_df(df, path, name, save_index=False, append_size=True):
     if append_size:
-        middle = '_' + str(round(df.shape[0] / 1000)) + 'k_' + str(df.shape[1])
+        middle = '_' + in_k(df.shape[0]) + '_' + str(df.shape[1])
     else:
         middle = ''
 
@@ -135,6 +135,10 @@ def save_df(df, path, name, save_index=False, append_size=True):
     df.to_csv(filename, index=save_index)
 
     return filename
+
+
+def in_k(n, dec=0):
+    return str(round(n / 1000, dec)) + 'k'
 
 
 def time_from_str(s, formato):
@@ -178,3 +182,40 @@ da la (primera) posición del elemento más pequeño
     """
     mi = min(lista)
     return lista.index(mi)
+
+
+def json_from_string(s):
+    import json
+    return json.loads(s.replace("'", "\""))
+
+
+def list_freqs(myList):
+    frequencyDict = dict()
+    visited = set()
+    listLength = len(myList)
+    for i in range(listLength):
+        if myList[i] in visited:
+            continue
+        else:
+            count = 0
+            element = myList[i]
+            visited.add(myList[i])
+            for j in range(listLength - i):
+                if myList[j + i] == element:
+                    count += 1
+            frequencyDict[element] = count
+    #     print("Input list is:", myList)
+    #     print("Frequency of elements is:")
+    #     print(frequencyDict)
+    return frequencyDict
+
+
+def json_update_file(path, dic):
+    import os
+    existe = os.path.exists(path)
+    if existe:
+        j = json_read(path)
+        j.update(dic)
+    else:
+        j = dic
+    json_save(j, path)

@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 
 
 def getmtime(filename):
@@ -17,19 +16,40 @@ def getctime(filename):
     return os.stat(filename).st_ctime
 
 
-def lista_files_recursiva(path, ext):
+def lista_files_recursiva(path, ext, with_path=True, drop_extension=False, recursiv=True, filter=None):
     """
 devuelve la lista de archivos en la ruta, recursivamente, de la extensión especificada. la lista está ordenada por fecha
 de modificación
+    :param filter: deja sólo los resultados que contengan este string
+    :param drop_extension:
+    :param with_path:
     :param path:
     :param ext:
     :return:
     """
     import glob
-    lista = glob.glob(path + '**/*.' + ext, recursive=True)
+
+    if recursiv:
+        lista = glob.glob(path + '**/*.' + ext, recursive=recursiv)
+    else:
+        lista = glob.glob(path + '/*.' + ext, recursive=recursiv)
+
     lista = sorted(lista, key=getmtime, reverse=True)
 
-    return lista
+    if not with_path:
+        lista = [get_filename(x) for x in lista]
+
+    if drop_extension:
+        lista = [remove_extension(x) for x in lista]
+
+    if filter is not None:
+        lista = [x for x in lista if filter in x]
+
+    return sorted(lista)
+
+
+def remove_extension(filename):
+    return '.'.join(filename.split('.')[:-1])
 
 
 def fecha_mod(file):
@@ -43,13 +63,17 @@ entrega la fecha de modificación de un archivo como un número yyyymmdd
     return int(dt.strftime('%Y%m%d'))
 
 
-def get_filename(path):
+def get_filename(path, remove_ext=False):
     """
 obtiene el nombre del fichero desde el path completo
+    :param remove_ext: quitar la extension
     :param path:
     :return:
     """
-    return os.path.basename(path)
+    file = os.path.basename(path)
+    if remove_ext:
+        file = remove_extension(file)
+    return file
 
 
 def escribe_txt(txt, file_path):
@@ -75,42 +99,3 @@ lee fichero de texto
         # close file
         text_file.close()
         return data
-
-
-def lee_sheet(path, n_row_data, pre, fecha_min=None, show=False):
-    """
-Lee fichero excel de datos históricos. Requiere que la primera fila se de fechas
-    :param show: Boolean. Muestra preview de cabecera y datos procesados
-    :param pre: prefijo para las columnas
-    :param path:
-    :param n_row_data: fila en que comienzan los datos
-    :param fecha_min: '2016-01-01'
-    :return: dataframe la información de la cabecera
-    """
-    df = pd.read_excel(path, skiprows=n_row_data - 1)
-
-    df = df[~pd.isna(df.iloc[:, 0])]  # quitamos filas sin fecha
-    df = df.dropna(axis=1, how='all')  # quitamos columnas en blanco
-    if fecha_min is not None:
-        from datetime import datetime
-        df = df[df.iloc[:, 0] > datetime.strptime(fecha_min, '%Y-%m-%d')]
-
-    df = rename_cols(df, pre, 'fecha')
-
-    cab = pd.read_excel(path, nrows=n_row_data - 2)
-    if show:
-        from IPython.core.display import display
-        print('  ** Cabecera')
-        display(cab)
-        print('  ** Datos')
-        display(df)
-
-    return df, cab
-
-
-def rename_cols(h, pre, col_fecha='fecha'):
-    cols = h.columns
-    h = h.rename(columns={cols[0]: col_fecha})
-    h = h.rename(columns={x: pre + '_' + x for x in (cols[1:])})
-
-    return h

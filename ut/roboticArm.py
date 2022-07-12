@@ -1,25 +1,37 @@
 import random
 import time
-
+import ipysheet
 import pandas as pd
 from IPython.core.display import display
 
-from ut import lss_const, lss
-from ut.base import now, json_save, json_read, time_to_str, FORMAT_DATETIME, save_df
+import lss_const
+import lss
+from ut.base import now, json_save, json_read, time_to_str, FORMAT_DATETIME, save_df, json_update_file
 from ut.io import escribe_txt
-from ut.lss_const import d_status
+from lss_const import d_status
+
+SEC_MARGIN = 100  # cuantas decimas de grado se dejan como maergen para no usar el límite del servo
+RANGE_BASE = 1800
 
 
 class Pattern:
-    def __init__(self, di, name='name'):
+    def __init__(self, di, name='name', desc=''):
         self.moves = {}
         self.di = di
         self.name = name
+        self.desc = desc
 
-    def add(self, part, start, pos, vel):
+    def add(self, servo, start, pos, vel):
+        """
+agrega un tramo de movimiento
+        :param servo: ['base', 'hombro', 'codo', 'muneca', 'mano']
+        :param start: tiempo de partida (en secs)
+        :param pos: ángulo final (en décimas de grado
+        :param vel: velocidad (max= 300)
+        """
         lista = ['base', 'hombro', 'codo', 'muneca', 'mano']
-        if part in lista:
-            aa = {start: {'o': part, 'pos': pos, 'vel': vel}}
+        if servo in lista:
+            aa = {start: {'o': servo, 'pos': pos, 'vel': vel}}
             self.moves.update(aa)
         else:
             print('part debe ser uno de estos {}')
@@ -35,6 +47,17 @@ class Pattern:
 
         return df_move.copy().reset_index(drop=True)
 
+    def get_editable_df(self):
+        sheet = ipysheet.from_dataframe(self.get_df_moves())
+        return sheet
+
+    def set_sheet_moves(self, sheet, test_it=False):
+        df = ipysheet.to_dataframe(sheet)
+        dic = df.set_index('time').to_dict(orient='index')
+        self.moves = dic
+        if test_it:
+            self.run(start_home=False)
+
     def stop(self, servo):
         print('poniendo todos en HOLD a causa de ', servo)
         for k in self.di:
@@ -46,7 +69,11 @@ class Pattern:
             home(self.di, shifted_base=base_shift)
 
         delta = 0  # tiempo antes del siguiente movimiento
+
+        # APLICAMOS EL RANDOM
         df_moves = self.get_df_moves(random_perc)
+
+        # APLICAMOS EL SHIFT
         if base_shift != 0:
             df_moves = apply_shift(df_moves, base_shift)
 
@@ -76,15 +103,18 @@ class Pattern:
                 delta = float(r_next['time']) - float(row['time'])
 
             if delta > 0:
-                time.sleep(delta)
                 if not silent:
                     print('>>>Waiting ', round(delta, 2))
+                time.sleep(delta)
+                if not silent:
+                    print('>>>Waited ', round(delta, 2))
 
             delta = 0
 
-        # espera a estar quieto para situiente instrucción
-        while is_moving(self.di):
-            time.sleep(0.1)
+        # espera a estar quieto para siguiente instrucción
+        # while is_moving(self.di):
+        #     time.sleep(0.1)
+        time.sleep(1)  # el is_moving depende de que respondan los servos y esto puede ocasionar tiempos muy variables
 
         if not silent:
             print('ya está quieto; ha terminado')
@@ -95,12 +125,16 @@ class Pattern:
                         'base_pattern': self.get_df_moves().to_dict('index'),
                         'real_pattern': df_moves.to_dict('index')}
 
+        if not silent:
+            display(executed_mov)
+
         return executed_mov
 
     def run(self, n=1, start_home=True, end_home=True, intercala_home=True, silent=False, random_perc=0,
-            base_shift=0):
+            base_shift=0, test_mode=False):
         """
 
+        :param test_mode:
         :param n:
         :param start_home:
         :param end_home:
@@ -117,11 +151,11 @@ class Pattern:
             if not silent:
                 print('\n\n >>>>>>>>>>repeticion: {}/{}'.format(i + 1, n))
             d_moves = self._run(start_home=intercala_home, silent=silent, base_shift=base_shift,
-                                random_perc=random_perc)
+                                random_perc=random_perc, test_mode=test_mode)
             d.update(d_moves)
 
         if end_home:
-            home(self.di, shifted_base=base_shift)
+            home(self.di, shifted_base=base_shift, reset_if_error=False)
 
         return d
 
@@ -148,6 +182,10 @@ creación de movimientos random
     def save(self, path='data_in/patrones/'):
         json_save(self.moves, path + 'move_' + self.name)
 
+        # save description
+        path2 = path + 'descriptions'
+        json_update_file(path2, {self.name: self.desc})
+
     def load(self, path, verbatim=False):
         self.name = path.split('/')[-1].split('.')[0].split('_')[-1]
         self.moves = json_read(path)
@@ -155,20 +193,60 @@ creación de movimientos random
             print('Movimiento llamado: {}'.format(self.name))
             display(self.get_df_moves())
 
+    def set_moves(self, di_moves):
+        self.moves = di_moves
+
 
 class Experimento:
     def __init__(self, di, n, *files):
+        self._reset_vars()
+
         self.di = di
-        moves = patterns_from_files(di, files)
-        self.r_moves = random.choices(moves, k=n)
-        seq = [x.name for x in self.r_moves]
-        print(seq)
-        self.df = pd.DataFrame()
-        self.d_moves_done = {}
+        self.files = files
         self.base_shift = 0
         self.random_perc = 0
-        self.counter = 1
         self.n = n
+        self._l_patterns = self._random_seq_of_pats(n)
+        self.range_shifted = 0
+
+        print(self.get_sequence())
+
+    def _random_seq_of_pats(self, n):
+        return random.choices(patterns_from_files(self.di, self.files), k=n)
+
+    def get_sequence(self):
+        return [x.name for x in self._l_patterns]
+
+    def get_patterns(self):
+        return self._l_patterns
+
+    def get_patterns_moves_df(self):
+        li = []
+        for pat in self._l_patterns:
+            moves = pat.get_df_moves()
+            li.append(moves)
+            display(moves)
+        return li
+
+    def get_patterns_used(self):
+        return sorted(list(set(self.get_sequence())))
+
+    def _reset_vars(self):
+        self.df_moves_done = pd.DataFrame()
+        self.di_moves_done = {}
+        self.counter = 1
+
+    def set_sequence(self, seq):
+        moves = patterns_from_files(self.di, self.files)
+        ll = []
+        for s in seq:
+            moves_red = [m for m in moves if m.name == s]
+            if len(moves_red) != 1:
+                print('problemas para enocontar el mov {}'.format(s))
+            else:
+                ll.append(moves_red[0])
+        self._l_patterns = ll
+        print('secuencia aceptada:', self.get_sequence())
 
     def set_shift(self, shift):
         self.base_shift = shift
@@ -176,61 +254,104 @@ class Experimento:
     def set_random_perc(self, perc):
         self.random_perc = perc
 
-    def run(self):
-        home(self.di, shifted_base=self.base_shift)
-        for m in self.r_moves:
+    def regenerate_sequence(self, n):
+        """
+regenera la secuencia de movimientos, de largo n, usando los mismos patrones que definieron
+el Experimento
+        :param n:
+        """
+        pats = self._random_seq_of_pats(n)
+        self._l_patterns = pats
+        seq = self.get_sequence()
+        print('nueva:', seq)
+
+    def run(self, silent=True, test_mode=False, range_shifted=0):
+        self._reset_vars()
+        self.range_shifted = range_shifted
+        bs = self.base_shift
+        rp = self.random_perc
+
+        for pat in self._l_patterns:
             c = self.counter
             t1 = now(True)
-            print('\n ', c, ' / ', self.n, ' doing ', m.name, ' | ', t1)
-            d_move = m.run(1, start_home=False, end_home=False, intercala_home=False, silent=True,
-                           random_perc=self.random_perc, base_shift=self.base_shift)
+
+            # random shift
+            if range_shifted != 0:
+                df_moves = pat.get_df_moves()
+                maxi_applicable, mini_applicable, _, _ = range_of_base(df_moves)
+                bs = int(random.uniform(-range_shifted, range_shifted))
+
+            if c == 1:
+                home(self.di, shifted_base=bs)
+
+            print('\n ', c, ' / ', self.n, ' doing ', pat.name,
+                  ' | rand: ', rp, '% | shift_base: ', str(round(bs / 10, 2)),
+                  'º | ', t1)
+
+            d_move = pat.run(1, start_home=False, end_home=False, intercala_home=False, silent=silent,
+                             random_perc=rp, base_shift=bs, test_mode=test_mode)
             d_move['start'] = time_to_str(t1, FORMAT_DATETIME)
-            self.d_moves_done[c] = d_move
+            self.di_moves_done[c] = d_move
 
             #  Go Home
             time.sleep(1)
             t2 = now(True)
-            home(self.di, shifted_base=self.base_shift)
+            home(self.di, shifted_base=bs, reset_if_error=False)
+            df2 = pd.DataFrame({'time': [t1, t2], 'pat': [pat.name, 'GH'], 'i': [c, c], 'shift': [bs, bs],
+                                'rand': [rp, rp]})
 
-            df2 = pd.DataFrame({'time': [t1, t2], 'move': [m.name, 'GH'], 'i': [c, c]})
-
-            self.df = pd.concat([self.df, df2])
+            self.df_moves_done = pd.concat([self.df_moves_done, df2])
             self.counter = c + 1
 
-        home(self.di)
-
-    def run_shifted(self, list_shifts):
-        for s in list_shifts:
-            time.sleep(1)
-            self.set_shift(s)
-            self.run()
+        # home(self.di)
 
     def save(self, name, desc, path):
         f = '%Y%m%d_%H%M%S'
-        moves_ = [x.name for x in self.r_moves]
-        le = str(len(moves_))
-        tx = desc + '\n\n' + 'n_moves: ' + le + '\n\n' + str(moves_)
+        tx, n_moves = self.describe(desc, imprime=False)
 
-        ini = self.df.time.dt.strftime(f).iloc[0]
-        end = self.df.time.dt.strftime(f).iloc[-1]
-        name2 = ini + '__' + end + '_' + name + '_n' + le
+        ini = self.df_moves_done.time.dt.strftime(f).iloc[0]
+        end = self.df_moves_done.time.dt.strftime(f).iloc[-1]
+        name2 = ini + '__' + end + '_' + name + '_n' + n_moves
 
         # df con los movimientos realizados (time - nombre)
-        save_df(self.df, path, name2, append_size=False)
+        save_df(self.df_moves_done, path, name2, append_size=False)
 
         # descripción del experimento
         escribe_txt(tx, path + name2 + '.txt')
 
         # movimientos reales realizados (considerando la variación aleatoria y shift de la base
-        json_save(dic=self.d_moves_done, path=path + name2 + '_real')
+        json_save(dic=self.di_moves_done, path=path + name2 + '_real')
+
+    def describe(self, desc='', imprime=True):
+        moves_ = self.get_sequence()
+        n_moves = str(len(moves_))
+        tx = desc + \
+             '\n\n' + 'n_moves: ' + n_moves + \
+             '\n\n' + 'random_perc: ' + str(self.random_perc) + \
+             '\n\n' + str(moves_) + \
+             '\n\n' + 'range_base_shift (deg*10): ' + str(self.range_shifted)
+        if imprime:
+            print(tx)
+            return None
+        return tx, n_moves
+
+    def apply_to_each_pat(self, fun):
+        for i in range(len(self._l_patterns)):
+            self._l_patterns[i] = fun(self._l_patterns[i])
+        # x=[fun(x) for x in self._l_patterns]
+        #  =x
+
+    def set_list_patterns(self, list_patt):
+        self._l_patterns = list_patt
+        self.n = len(list_patt)
 
 
-def get_status(myLSS, name="Telemetry", imprime=True):
-    pos = myLSS.getPosition()
-    rpm = myLSS.getSpeedRPM()
-    curr = myLSS.getCurrent()
-    volt = myLSS.getVoltage()
-    temp = myLSS.getTemperature()
+def get_status(servo, name, imprime=True):
+    pos = servo.getPosition()
+    rpm = servo.getSpeedRPM()
+    curr = servo.getCurrent()
+    volt = servo.getVoltage()
+    temp = servo.getTemperature()
 
     if imprime:
         print("\nQuerying LSS... ", name)
@@ -243,6 +364,16 @@ def get_status(myLSS, name="Telemetry", imprime=True):
 
     df = pd.DataFrame({'name': [name], 'pos': [pos], 'rpm': [rpm],
                        'curr': [curr], 'volt': [volt], 'temp': [temp]}).set_index('name')
+    dic = df.to_dict(orient='index')
+
+    return df, dic
+
+
+def get_stiff(servo, name):
+    stf_hol = servo.getAngularHoldingStiffness()
+    stf = servo.getAngularStiffness()
+
+    df = pd.DataFrame({'name': [name], 'stiff': [stf], 'stf_hol': [stf_hol]}).set_index('name')
     dic = df.to_dict(orient='index')
 
     return df, dic
@@ -286,16 +417,18 @@ lleva a la posición de origen
             else:
                 kk = d_status[int(status)]
 
-            msg = '** WARNING status of <<{}>> is not normal, is {}:{}. Reseteamos el servo '.format(k, status, kk)
-            # print(msg)
+            msg = '** WARNING status of <<{}>> is not normal, is {}:{}. Reseteamos el servo: {}'.format(k, status, kk,
+                                                                                                        reset_if_error)
+            print(msg)
             if reset_if_error:
-                o.resetea_all()
-            raise Exception(msg)
+                o.reset()
+            # raise Exception(msg)
         if k == 'base':
-            o.moveTo(shifted_base)
+            o.moveTo(shifted_base, vel=40)
             print('moviendo a home con base shiftada: ', str(round(shifted_base / 10, 1)), ' grados')
         else:
-            o.moveTo(0)
+            o.moveTo(0, vel=40)  # si no limintamos la velocidad, a veces es muy brusco y
+            # afloja los tornillos del brazo
     while is_moving(di):
         time.sleep(0.2)  # para garantizar que se detiene
     update_position(di)
@@ -364,7 +497,9 @@ def is_moving(di):
         # print(k, ' vel', v)
         li.append(abs(v))
 
-    return sum(li) > 5
+    is_moving_ = sum(li) > 5
+    # print('is_moving ', is_moving_)
+    return is_moving_
 
 
 def is_at_home(di):
@@ -392,17 +527,34 @@ def get_variables(di):
     return status
 
 
+def get_variables_st(di):
+    """
+https://wiki.lynxmotion.com/info/wiki/lynxmotion/view/lynxmotion-smart-servo/lss-communication-protocol/#HAngularHoldingStiffness28AH29
+    :param di:
+    :return:
+    """
+    status = pd.DataFrame()
+    for k in di:
+        df, j = get_stiff(di[k]['o'], k)
+        status = pd.concat([status, df])
+        di[k]['stiff'] = j[k]
+
+    return status
+
+
 def init(CST_LSS_Port="COM5", go_home=True):
     # Use the app LSS Flowarm that makes automatic scanning
     CST_LSS_Baud = lss_const.LSS_DefaultBaud
     lss.initBus(CST_LSS_Port, CST_LSS_Baud)
 
+    print('Asignando las variables de servos')
     l_base = lss.LSS(1)
     l_hombro = lss.LSS(2)
     l_codo = lss.LSS(3)
     l_muneca = lss.LSS(4)
     l_mano = lss.LSS(5)
 
+    print('Encencidendo las luces')
     l_base.setColorLED(lss_const.LSS_LED_Red)
     l_hombro.setColorLED(lss_const.LSS_LED_Blue)
     l_codo.setColorLED(lss_const.LSS_LED_Green)
@@ -483,6 +635,25 @@ def varia_pattern(d_mov, p, di=None):
     return d
 
 
+def varia_pattern2(d_mov, p, di=None):
+    if p == 0:
+        d = d_mov
+    else:
+        d = {}
+        for k in d_mov:
+            t = str(varia(float(k), p, 2))
+            dd = d_mov[k].copy()
+            # limitamos por si hubiera limites (di)
+            if di is not None:
+                mini, maxi = di[k]['min'], di[k]['max']
+            else:
+                mini, maxi = None, None
+            dd['pos'] = int(varia(dd['pos'], p, mini=mini, maxi=maxi))
+            dd['vel'] = int(varia(dd['vel'], p, mini=30))
+            d[t] = dd
+    return d
+
+
 def test_move(move, files, di):
     p = move_from_files(di, files, move)
     p.run(end_home=False)
@@ -495,10 +666,10 @@ def move_from_files(di, files, move):
 
 
 def test_all_moves(files, di):
-    pats = patterns_from_files(di, files)
+    pats = patterns_from_files(di, sorted(files))
     for mo in pats:
         print('\n\n>>>>>>>>>>>>>>>>>>> ', mo.name)
-        mo.run(start_home=True, end_home=True)
+        mo.run(start_home=True, end_home=True, silent=True)
 
 
 def home_definition(di, setType):
@@ -509,7 +680,7 @@ setType = LSS_SetConfig  # para siempre
 setType = LSS_SetSession  # para la sesión
 
     :param di:
-    :param setType:
+    :param setType:LSS_SetConfig  # para siempre, LSS_SetSession  # para la sesión
     """
     print('Ojo que se se aplica dos veces se vuelve a la posión central de fábrica, que este caso hace petar la tenaza')
     for k in di:
@@ -521,18 +692,50 @@ setType = LSS_SetSession  # para la sesión
         print(k, ' ', current_pos, ' -> ', current_pos2)
 
 
-def shiftea(x, base_shift):
-    x = x + base_shift
-    if x < -1800:
-        x = -1800
-    if x > 1800:
-        x = 1800
-    return x
-
-
 def apply_shift(df_moves, shift):
-    mask = df_moves['o'] == 'base'
-    buf = df_moves[mask].copy()
-    df_moves.loc[mask, 'pos'] = buf['pos'].map(lambda x: shiftea(x, shift))
+    """
+Modifica el df_moves de manerea que los movimientos de la base están shifteados por shift
+Contiene una seguridad para que no se salga se la escala
+    :param df_moves:
+    :param shift:
+    :return:
+    """
+    maxi_applicable, mini_applicable, buf, mask = range_of_base(df_moves)
+
+    msg = 'Demasiado shift, se saldría de la escala con este movimiento. ' \
+          'Aplicaremos el máximo shift%s para este caso:'
+
+    if shift > maxi_applicable:
+        maxi = maxi_applicable - SEC_MARGIN
+        print(msg % ' POSITIVO', maxi)
+        shift = maxi
+
+    if shift < mini_applicable:
+        mini = mini_applicable + SEC_MARGIN
+        print(msg % ' NEGATIVO', mini)
+        shift = mini
+
+    if buf is not None:
+        df_moves.loc[mask, 'pos'] = buf['pos'].map(lambda x: x + shift)
 
     return df_moves
+
+
+def range_of_base(df_moves):
+    """
+devuelve el rango de los máximo y mínimos shifts que se le pueden hacer a la base en este patrón
+    :param df_moves:
+    :return:
+    """
+    mask = df_moves['o'] == 'base'
+    buf = df_moves[mask].copy()
+
+    if len(buf) == 0:
+        maxi_applicable = RANGE_BASE - SEC_MARGIN
+        mini_applicable = -RANGE_BASE - SEC_MARGIN
+        buf = None
+    else:
+        maxi_applicable = RANGE_BASE - max(buf.pos)
+        mini_applicable = -RANGE_BASE - min(buf.pos)
+
+    return maxi_applicable, mini_applicable, buf, mask

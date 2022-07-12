@@ -70,6 +70,66 @@ entrena una wavenet
     return model
 
 
+def Regressor(shape_, n_out, LR):
+    """
+entrena una wavenet
+    :param LR: learning rate
+    :param shape_:
+    :param n_out: número de clases
+    :return:
+    """
+
+    from tensorflow.keras import models, losses
+    from tensorflow.python.keras import Input
+    from tensorflow.python.keras.layers import Conv1D, Multiply, Add, Dense
+    from tensorflow.python.keras.optimizer_v2.adam import Adam
+
+    import tensorflow.keras.metrics as met
+
+
+    def wave_block(x, filters, kernel_size, n):
+        dilation_rates = [2 ** i for i in range(n)]
+        x = Conv1D(filters=filters,
+                   kernel_size=1,
+                   padding='same')(x)
+        res_x = x
+        for dilation_rate in dilation_rates:
+            tanh_out = Conv1D(filters=filters,
+                              kernel_size=kernel_size,
+                              padding='same',
+                              activation='tanh',
+                              dilation_rate=dilation_rate)(x)
+            sigm_out = Conv1D(filters=filters,
+                              kernel_size=kernel_size,
+                              padding='same',
+                              activation='sigmoid',
+                              dilation_rate=dilation_rate)(x)
+            x = Multiply()([tanh_out, sigm_out])
+            x = Conv1D(filters=filters,
+                       kernel_size=1,
+                       padding='same')(x)
+            res_x = Add()([res_x, x])
+        return res_x
+
+    inp = Input(shape=shape_)
+
+    x = wave_block(inp, 16, 3, 12)
+    x = wave_block(x, 32, 3, 8)
+    x = wave_block(x, 64, 3, 4)
+    x = wave_block(x, 128, 3, 1)
+
+    out = Dense(n_out, activation='linear', name='out')(x)
+
+    model = models.Model(inputs=inp, outputs=out)
+
+    opt = Adam(lr=LR)
+    # opt = tfa.optimizers.SWA(opt)
+    # model.compile(loss=losses.CategoricalCrossentropy(), optimizer=opt, metrics=['accuracy'])
+
+    model.compile(loss=losses.MeanSquaredError(), optimizer=opt, metrics=[met.mean_squared_error])
+    return model
+
+
 def _best_f1(y_true, probs):
     import sklearn.metrics as me
     import numpy as np

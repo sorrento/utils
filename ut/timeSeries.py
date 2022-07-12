@@ -8,7 +8,7 @@ def to_ticked_time(x, tic):
     return nearest(x, seq)
 
 
-def get_tick(times):
+def get_tick(times, plotea=True, verbose=True):
     import numpy as np
     m = []
     for i in range(len(times) - 1):
@@ -17,8 +17,10 @@ def get_tick(times):
         mili = k.microseconds / 1e3
         m.append(mili)
 
-    plot_hist(m, 30)
+    if plotea:
+        plot_hist(m, 30)
     tic = int(np.median(m))
-    print('La mediana de tick es ', tic)
+    if verbose:
+        print('La mediana de tick es ', tic)
 
     return tic
