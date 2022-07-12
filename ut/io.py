@@ -76,13 +76,7 @@ obtiene el nombre del fichero desde el path completo
     return file
 
 
-def escribe_txt(txt, file_path):
-    text_file = open(file_path, "wt")
-    n = text_file.write(txt)
-    text_file.close()
-
-
-def lee_txt(file_path):
+def txt_read(file_path):
     """
 lee fichero de texto
     :param file_path:
@@ -99,3 +93,29 @@ lee fichero de texto
         # close file
         text_file.close()
         return data
+
+
+def txt_write(file_path, txt):
+    txt_ = file_path + '.txt'
+    print('  ** Guardando ', txt_)
+    text_file = open(txt_, "w", encoding='utf-8')
+    text_file.write(txt)
+    text_file.close()
+
+
+def files_remove(path, ext, recur=False):
+    import os
+    import glob
+    # Get a list of all the file paths that ends with .txt from in specified directory
+    # fileList = glob.glob('C://Users/HP/Desktop/A plus topper/*.txt')
+    b = ''
+    if recur:
+        b = '/**'
+
+    fileList = glob.glob(path + b + '/*.' + ext)
+    # Iterate over the list of filepaths & remove each file.
+    for filePath in fileList:
+        try:
+            os.remove(filePath)
+        except Exception as e:
+            print("Error while deleting file : ", filePath)

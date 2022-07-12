@@ -22,7 +22,7 @@ def make_folder(path, verbose=True):
 
 def inicia(texto):
     ahora = time.time()
-    print('** Iniciando: {}'.format(texto))
+    print('\n** Iniciando: {}'.format(texto))
 
     return [ahora, texto]
 
@@ -50,11 +50,24 @@ def json_save(dic, path, datos_desc=''):
         json.dump(dic, outfile, ensure_ascii=False)
 
 
-def json_read(json_file):
+def json_read(json_file, keys_as_integer=False):
     import json
     with open(json_file, encoding="utf-8") as in_file:
         data = json.load(in_file)
+
+    if keys_as_integer:
+        data = {int(x) if x.isdigit() else x: data[x] for x in data.keys()}
+
     return data
+
+
+def json_update(j, path):
+    import os
+    jj = {}
+    if os.path.isfile(path):
+        jj = json_read(path)
+    jj.update(j)
+    json_save(jj, path)
 
 
 def get_now(utc=False):
@@ -89,6 +102,7 @@ def get_now_format(f=FORMAT_DATE, utc=False):
 def flatten(lista):
     """
 transforma una lista anidada en una lista de componenetes únicos oredenados
+OJO: SÓLO SI NO SE REPITEN ELEMENTOS
     :param lista:
     :return:
     """
@@ -126,15 +140,26 @@ def abslog(x):
 
 def save_df(df, path, name, save_index=False, append_size=True):
     if append_size:
-        middle = '_' + in_k(df.shape[0]) + '_' + str(df.shape[1])
+        middle = '_' + str(round(df.shape[0] / 1000)) + 'k_' + str(df.shape[1])
     else:
         middle = ''
 
     filename = path + '/' + name + middle + '.csv'
-    print('** Guardando dataset en {}'.format(filename))
+    print('  ** Guardando dataset en {}'.format(filename))
     df.to_csv(filename, index=save_index)
 
     return filename
+
+
+def win_exe(cmd):
+    import os
+    from sys import platform
+    print("**Executing in Windows shell:" + cmd)
+    if platform == 'win32':
+        cmd = cmd.replace('/', '\\')
+    out = os.popen(cmd).read()
+    print('**OUT:{}'.format(out))
+    return out
 
 
 def in_k(n, dec=0):
