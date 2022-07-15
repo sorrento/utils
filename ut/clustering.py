@@ -5,7 +5,7 @@ from sklearn.cluster import DBSCAN, KMeans
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
-from u_base import save_df, inicia, tardado
+from base import df_save, inicia, tardado
 
 CLUSTER_DBSCAN = 'DBscan'
 CLUSTER_KMEANS = 'Kmeans'
@@ -40,7 +40,7 @@ class Clusterer:
         """
         if self._df_labels is not None:
             filename = 'clustering_' + self._algoritmo + '_' + str(self._n_clusters) + '_clusters'
-            save_df(self._df_labels, path=out_, name=filename, save_index=True)
+            df_save(self._df_labels, path=out_, name=filename, save_index=True)
         else:
             print('*** WARN *** no se puede guardar porque aún no se ha calculado')
 
