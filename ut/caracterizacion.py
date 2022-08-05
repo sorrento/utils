@@ -1,7 +1,5 @@
-# from rsi_automl.utils_plot import plot_umap_one_clu, read_variables, plot_cluster_sizes
-# from rsi_automl.u_plots import plot_save, radar_plot
 from embedding import plot_umap
-from u_plots import plot_save, radar_plot
+from plots import radar_plot, plot_save
 
 
 class Characterizator:
