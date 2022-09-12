@@ -12,6 +12,12 @@ Para que cargue sin errores los `display`
 
     from IPython.core.display import display
 
+Usar todo el ancho de la pantalla
+
+    from IPython.core.display import display, HTML
+    display(HTML("<style>.container { width:100% !important; }</style>"))
+
+
 ## 1. Sincronización
  Para que sincronice un fichero `.py` con el `.pynb`, poner esto en el metadata
 
@@ -48,8 +54,23 @@ Escribir esto en la consola de anaconda
     t1.join()
     t2.join()
 
+# MATPLOTLIB
+    plt.figure(figsize=(9, 5))
+    plt.plot(b.DATE, b.Value,'.')
+    plt.plot(b.DATE, b.Value)
+    plt.ylim(0)
+    plt.xlabel('date')
+    plt.ylabel('Index price')
+    plt.title(i)
+    plt.show()
+
 # CUDA
 installing pytorch
     https://blog.machinfy.com/installing-pytorch/
 
     torch.cuda.is_available()
+
+# Pandas
+
+## Crear columna desde dos
+    df.apply(lambda row: time_from_quarter(row.year, row.quarter), axis=1)
