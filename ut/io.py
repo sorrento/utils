@@ -83,7 +83,13 @@ lee fichero de texto
     :return:
     """
     import os
-    if os.path.isfile(file_path):
+    try:
+        isfile = os.path.isfile(file_path)
+    except Exception as e:
+        print('No es file:{}\n{}'.format(file_path, str(e)))
+        isfile = False
+
+    if isfile:
         # open text file in read mode
         text_file = open(file_path, "r", encoding='utf-8')
 
@@ -95,6 +101,8 @@ lee fichero de texto
         if as_list:
             data = data.split('\n')
         return data
+    else:
+        return ''
 
 
 def txt_write(file_path, txt):
@@ -121,3 +129,9 @@ def files_remove(path, ext, recur=False):
             os.remove(filePath)
         except Exception as e:
             print("Error while deleting file : ", filePath)
+
+
+def has_extension(path):
+    res = '.' in path[-5:-2]
+    # print('{} has extensio: {}'.format(path, res))
+    return res
