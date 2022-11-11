@@ -55,6 +55,9 @@ Escribir esto en la consola de anaconda
     t2.join()
 
 # MATPLOTLIB
+
+    import matplotlib.pyplot as plt
+
     plt.figure(figsize=(9, 5))
     plt.plot(b.DATE, b.Value,'.')
     plt.plot(b.DATE, b.Value)
@@ -64,6 +67,33 @@ Escribir esto en la consola de anaconda
     plt.title(i)
     plt.show()
 
+## Subplots
+    from matplotlib.pyplot import figure
+    fig, axs = plt.subplots(2, 2,figsize=(12, 8), dpi=80)
+    
+    axs[0,0].plot(total_norm.yw_start_fut, total_norm.Value_log_fut)
+    
+    axs[1,0].plot(total_norm.yw_start, total_norm[w].rolling(r).mean())
+    axs[1,0].set_title(f'word:{w} ROLLING MEAN:{r} sems')
+    
+    axs[0,1].plot(np.log(total_norm.Value_fut), total_norm[w].rolling(r).mean(), 'o')
+
+
+# PLOTLY
+Evitar que desaparezcan los plots:
+    
+    import plotly.io as pio
+    pio.renderers.default = 'notebook'  # para que no desaparezcan los plots
+
+Típico plot:
+
+    import plotly.express as px
+    fig = px.line(df, x="nfeat", y=aa, text="nfeat", color='motor',
+                  hover_name='nfeat',
+                  #               hover_data=[S],
+                  hover_data={aa: ':.4f', 'motor': False, 'nfeat': False, S: True},
+                  title=titulo)
+    fig.update_traces(textposition="bottom right")
 # CUDA
 installing pytorch
     https://blog.machinfy.com/installing-pytorch/

@@ -76,7 +76,7 @@ obtiene el nombre del fichero desde el path completo
     return file
 
 
-def txt_read(file_path):
+def txt_read(file_path, as_list=False):
     """
 lee fichero de texto
     :param file_path:
@@ -92,6 +92,8 @@ lee fichero de texto
 
         # close file
         text_file.close()
+        if as_list:
+            data = data.split('\n')
         return data
 
 
