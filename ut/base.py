@@ -302,3 +302,21 @@ def get_start_date_of_isoweek(year, week, date_format='datetime'):
         return Week(year, week).monday()
     else:
         return Week(year, week).monday().strftime(date_format)
+
+
+def timeit(func):
+    def my_wrap(*args, **kwargs):
+        t = inicia(func.__name__)
+        x = func(*args, **kwargs)
+        tardado(t)
+        return x
+
+    return my_wrap
+
+
+def make_folders(folder):
+    folds = [x for x in folder.split('/') if ((x != '') and ('.' not in x))]
+
+    for i in range(1, len(folds) + 1):
+        acc = '/'.join(folds[:i])
+        make_folder(acc)

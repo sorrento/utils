@@ -1,9 +1,12 @@
 import matplotlib.pyplot as plt
 
+from ut.base import make_folders
+
 
 def plot_save(write_png, folder, filename):
     if write_png:
         if folder is not None:
+            make_folders(folder)
             png = folder + filename + '.png'
             print('Saving', png)
             plt.savefig(png, dpi=100)

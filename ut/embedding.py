@@ -1,10 +1,11 @@
 from asyncio import exceptions
 
-from metrics import hellinger
-from umap import UMAP
+# from metrics import hellinger
+import umap # OJO desistalar librería umap. la buena es la umap-learn
 import pandas as pd
-from u_base import abslog, tardado, inicia
-from u_plots import plot_save
+
+from ut.base import abslog, timeit, make_folder
+from ut.plots import plot_save
 
 
 def dim_reduction(vector_matrix, kwargs):
@@ -154,11 +155,12 @@ def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=Non
     plt.show()
 
 
+@timeit
 def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30,
                  supervisado=True,
                  save_embedding=False,
                  distancia_min=1,
-                 estrategia_nan=None, ignora_categoricas=True, **params):
+                 estrategia_nan=None, ignora_categoricas=True, max_n_samples=10000, plot=True, **params):
     """
     Calcula en embedding utilizando UMAP https://umap-learn.readthedocs.io/
 
@@ -176,7 +178,7 @@ def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30
         Valores pequeños hacen una estructura muy local (estructura de clusters pequeños). Puede provocar
         patrones de ruido en vez de clusters
     supervisado: bool
-        Se utiliza la variable target para guiar el embedding
+        Se usa la variable target para guiar el embedding
     save_embedding
     distancia_min: float
         Una distancia pequeña "empaqueta" más los puntos cercanos. Si no separa clusters, aumentar
@@ -185,6 +187,7 @@ def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30
          proporción es pequeña, si es grande, los imputa de manera simple. Valores: None, 'simple','quita'
     ignora_categoricas: bool
         si no se ignoran, se realiza un onehotencoding
+    max_n_samples: int
 
     Returns
     -------
@@ -193,7 +196,6 @@ def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30
 
     """
     import umap
-
     if columnas == 'todas':
         df = df.copy()
         columnas = df.columns
@@ -239,7 +241,6 @@ def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30
     df_imp = _imputa(df2, estrategia_nan)
     print('len imp {}'.format(df_imp.shape))
 
-    max_n_samples = 10000
     if len(df_imp) > max_n_samples:
         print('** Sampleando {} muestras para entrenar umap: '.format(max_n_samples))
         df_sampled = df_imp.sample(n=max_n_samples, random_state=sem)
@@ -270,7 +271,8 @@ def compute_umap(df, s=None, columnas='todas', tipo_variables=None, n_vecinos=30
     supervisado_ = str(n_vecinos) + '_' + str(distancia_min) + '_' + str(int(ignora_categoricas)) + '_' + str(
         int(supervisado))
 
-    plot_umap(df_map, title=title, write_png=save_embedding, filename=supervisado_)
+    if plot:
+        plot_umap(df_map, title=title, write_png=save_embedding, filename=supervisado_)
 
     if save_embedding and (folder is not None):
         csv_ = folder + 'umap_' + supervisado_ + '.csv'
@@ -348,6 +350,7 @@ def _imputa(df, estrategia_nan, tipo_variables=None):
     return df_imp
 
 
+@timeit
 def _basic_imputation(df, tipo_variables, imputa_categoricas=True):
     """
 Imputa las valores faltantes, con el valor medio o más frecuente dependiendo si es numérica o categórica
@@ -356,7 +359,6 @@ Además elimina las textuales
     :param df:
     :param tipo_variables:
     """
-    t = inicia('Imputación Básica')
 
     nrows_na = df.shape[0] - df.dropna().shape[0]
     if nrows_na == 0:
@@ -372,7 +374,6 @@ Además elimina las textuales
         df_cat = _simple_imp(df, tipo_variables.get_v_cat_all(df), 'most_frequent')
     else:
         df_cat = df[tipo_variables.get_v_cat_all(df)]
-    tardado(t)
 
     return df_num.join(df_cat)
 
@@ -389,7 +390,7 @@ def _simple_imp(df, variables, strat):
 
 def umap_scan(vector_matrix, nvecs, dmins, di, path='data_med/umaps/', metrics=['cosine']):
     """
-hace un barrido por los parámetros que se le dan y guarda las gráficas.
+Hace un barrido por los parámetros que se le dan y guarda las gráficas.
 lo almacena en el diccionario di que se le da para actualizarlo
     :param vector_matrix:
     :param nvecs:
@@ -401,6 +402,8 @@ lo almacena en el diccionario di que se le da para actualizarlo
     # nvecs = [7, 15, 20, 30, 40, 50]
     # dmins = [.1, .3, .5, .7, 1]
     di2 = {}
+    make_folder(path)
+
     for me in metrics:
         # if me == 'hellinger':
         #     mef = hellinger
@@ -409,7 +412,6 @@ lo almacena en el diccionario di que se le da para actualizarlo
 
         for nve in nvecs:
             for dmin in dmins:
-                print('po')
                 name = str(nve) + '_' + str(dmin) + '_' + me
                 print(name)
 
@@ -422,10 +424,110 @@ lo almacena en el diccionario di que se le da para actualizarlo
                 umap_matrix = dim_reduction(vector_matrix, params_u)
                 di2[name] = {'params': params_u, 'umap': umap_matrix}
 
-                plot_umap(as_df(umap_matrix), name, path)
+                plot_umap(as_df(umap_matrix), title=name, filename=path + name)
 
     di.update(di2)
 
 
-def as_df(array):
-    return pd.DataFrame(array, columns=['UMAP_x', 'UMAP_y'])
+def as_df(array, index):
+    return pd.DataFrame(array, columns=['UMAP_x', 'UMAP_y'], index=index)
+
+
+def plot_umap_anomaly(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=None, filename='', folder='',
+              apply_log=False, quantile_cut=None, point_size=0.2, anomaly=False, **params):
+    """
+    Realiza una gráfica del embedding
+
+    Parameters
+    ----------
+    df: pandas df
+        Dataframe que contiene las columnas UMAP_x and UMAP_y. Si se proporcionan otras columnas
+        se pintarán sobre el embedding (categóricas o numéricas)
+    title: str
+        Título de la gráfica
+    x: float
+        Dimensión x del tamaño de la gráfica
+    y: float
+        Dimensión y del tamaño de la gráfica
+    write_png: bool
+        Guardar el plot en fichero
+    column_to_colour: str
+        Nombre de la columna a pintar sobre el embedding. Debe ser parte de df
+    apply_log. boolean
+        si se colorea por variable, si se debe aplicar abslog antes
+    quentile_cut: float
+        para pintar ponermos los valores más allá de los cuantiles a los valores de los cuantiles. valor entre cero y uno
+    params:
+        folder,
+        :param apply_log:
+    """
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    fig.set_size_inches(x, y)
+
+    df_2 = df.copy()
+    if column_to_colour is None:
+        scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=[0] * len(df), alpha=0.5)
+    else:
+        if column_to_colour not in df.columns:
+            print('**ERROR: la columna {} no se encuentra en el dataset'.format(column_to_colour))
+            return None
+        max_values = 50
+        n_values = len(df[column_to_colour].value_counts())
+        categorical = n_values < max_values
+
+        if categorical:
+            print('is categorical')
+            df_2[column_to_colour] = df_2[column_to_colour].astype('category')
+
+            if anomaly:
+                df_2[column_to_colour] = df_2[column_to_colour].astype('boolean')
+                ceros = df_2[~df_2[column_to_colour]]
+                unos = df_2[df_2[column_to_colour]]
+                scatter = ax.scatter(ceros['UMAP_x'], ceros['UMAP_y'],
+                                     c='gray',
+                                     alpha=0.1, s=point_size)
+
+                scatter = ax.scatter(unos['UMAP_x'], unos['UMAP_y'],
+                                     c='red',
+                                     alpha=0.9, s=point_size + 2)
+
+            else:
+                scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=df_2[column_to_colour].cat.codes, cmap="Set1",
+                                     alpha=0.5, s=point_size)
+        else:
+
+            if quantile_cut is not None:
+                qs = df_2[column_to_colour].quantile([quantile_cut, 1 - quantile_cut])
+                qmin = qs.iloc[0]
+                qmax = qs.iloc[1]
+                print('quantiles:', qs)
+
+                df_2.loc[df_2[column_to_colour] < qmin, column_to_colour] = qmin
+                df_2.loc[df_2[column_to_colour] > qmax, column_to_colour] = qmax
+
+            if apply_log:
+                colour_ = df_2[column_to_colour].apply(abslog)
+                pre = 'log10_'
+            else:
+                colour_ = df_2[column_to_colour]
+                pre = ''
+
+            scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=colour_, alpha=0.5, s=point_size,
+                                 cmap='viridis')  # RdYlGn')
+            legend1 = ax.legend(*scatter.legend_elements(), loc="best", title=pre + "valor")
+            ax.add_artist(legend1)
+
+    # produce a legend with the unique colors from the scatter
+    legend1 = ax.legend(*scatter.legend_elements(), loc="best", title="Cluster")
+    ax.add_artist(legend1)
+
+    n_samples = str(df_2.shape[0])
+    plt.title(title + ' Samples ' + n_samples)
+
+    plt.xlabel('X_UMAP')
+    plt.ylabel('Y_UMAP')
+
+    if write_png:
+        plot_save(write_png, folder, filename)
+    plt.show()

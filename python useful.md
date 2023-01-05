@@ -104,3 +104,11 @@ installing pytorch
 
 ## Crear columna desde dos
     df.apply(lambda row: time_from_quarter(row.year, row.quarter), axis=1)
+
+
+
+# Otros
+## Decorators
+por ejemplo para hacer imprimir los tiempos de cada funcion
+    https://pythongeeks.org/python-decorators/
+
