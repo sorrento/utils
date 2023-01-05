@@ -12,15 +12,22 @@ FORMAT_UTC = '%Y-%m-%dT%H:%M:%S.%fZ'
 FORMAT_UTC2 = '%Y-%m-%d %H:%M:%S.%f+00:00'
 
 
-def make_folder(path, verbose=True):
+def make_folder(path, verbose=True, delete_if_exists=False):
     import os
+    path = os.path.abspath(path)
     try:
-        if not os.path.isdir(path):
-            print('Creando directorio ', path)
-            os.mkdir(path)
+        if os.path.isdir(path):
+            if verbose:
+                print('Already exists: {}'.format(path))
+            if delete_if_exists:
+                import shutil
+                print('  Deleting existing one')
+                shutil.rmtree(path)
         else:
-            if verbose: print('Ya existe: {}'.format(path))
-        return path
+            print('Creating directory ', path)
+            os.mkdir(path)
+        return path + '/'
+
     except OSError:
         print('Ha fallado la creación de la carpeta %s' % path)
 
