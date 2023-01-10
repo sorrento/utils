@@ -91,8 +91,8 @@ class CharacterizatorSimple:
         self.df_other = None
         self.df_cluster = None
         self.resumen = None
-        self.v_num = None
-        self.v_cat = None
+        self.v_num = list(df_all.columns)
+        self.v_cat = []
         self.folder = folder
         self.clu = None
 
@@ -105,14 +105,16 @@ class CharacterizatorSimple:
         plot_umap_one_clu(self.df_all, 'CLUSTER ' + str(clu), clu, write_png=True, folder=self.folder)
         self.resumen = get_resumen(self.df_other, self.df_cluster)
         if solo_var_diferenciadoras:
-            self.v_num, self.v_cat = variables_diferenciadoras(self.resumen, self.tipos_var['var_num'],
-                                                               self.tipos_var['var_money'], self.tipos_var['var_cat'])
+            # self.v_num, self.v_cat = variables_diferenciadoras(self.resumen, self.tipos_var['var_num'],
+            #                                                    self.tipos_var['var_money'], self.tipos_var['var_cat'])
+            self.v_num, self.v_cat = variables_diferenciadoras(self.resumen, list(self.df_all.columns), [], [])
         else:
             self.v_num, self.v_cat = self.tipos_var['var_num'] + self.tipos_var['var_money'], self.tipos_var['var_cat']
 
         # resumen[resumen['rango'] != 0].head(7)
 
-    def split_dataset_by_cluster(self, df, cluster):
+    @staticmethod
+    def split_dataset_by_cluster(df, cluster):
         # vars = self.variables + ['id']
 
         df_other = df[df['cluster'] != cluster].copy()  # [vars]
@@ -165,7 +167,7 @@ class CharacterizatorSimple:
     def plot_radar(self, desc=None):
         median_clu = self.df_cluster[self.v_num].median()
         median_oth = self.df_other[self.v_num].median()
-        desc = self.df_desc.to_dict()['value']  # dictionary
+        # desc = self.df_desc.to_dict()['value']  # dictionary
         radar_plot(median_clu, median_oth, self.v_num, desc, write_png=True, folder=self.folder,
                    filename=str(self.clu) + '_radar')
 
@@ -398,16 +400,21 @@ def plot_cluster_sizes(df_clasificacion, cluster_col_name='cluster', write_png=T
     squarify.plot(sizes, label=label3, alpha=0.4)
     plt.axis('off')
 
-    plot_save(write_png, folder)
-    plt.show()
+    if write_png:
+        plot_save(write_png, folder, 'clusters')
+    else:
+        plt.show()
 
 
-def plot_umap_one_clu(df, title, clu, x=5, y=5, write_png=False, folder=None):
+def plot_umap_one_clu(df, title, clu, x=15, y=8, write_png=False, folder=None):
+    import matplotlib.pyplot as plt
     df2 = df[['UMAP_x', 'UMAP_y', 'cluster']].copy()
-    df2['cluster'] = (df2['cluster'] == clu).map({True: clu, False: -2}).astype('category')
+    # df2['cluster'] = (df2['cluster'] == clu).map({True: clu, False: -2}).astype('category')
+    df2['cluster'] = (df2['cluster'] == clu).astype('boolean')
 
+    plt.style.use('default')
     plot_umap(df2, title, x, y, column_to_colour='cluster', write_png=write_png, filename=str(clu) + '_cluster',
-              folder=folder)
+              folder=folder, anomaly=True, point_size=8)
 
 
 def clasifica_variables(df, var_id, file='survey'):

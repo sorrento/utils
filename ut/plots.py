@@ -27,6 +27,7 @@ bob = [81, 30, 75, 37, 46]
     desc
     """
     import numpy as np
+
     plt.style.use('ggplot')
 
     angles = np.linspace(0, 2 * np.pi, len(concepts), endpoint=False)

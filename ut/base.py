@@ -110,6 +110,7 @@ def json_save(dic, path, datos_desc='', indent=None, overwrite=False, df_to_dict
 
 def json_read(json_file, keys_as_integer=False):
     import json
+    print(f'** Leyendo json: {json_file}')
     if os.path.isfile(json_file):
         with open(json_file, encoding="utf-8") as in_file:
             data = json.load(in_file)
@@ -207,7 +208,7 @@ def abslog(x):
     return y
 
 
-def df_save(df, path, name, save_index=False, append_size=True, overwrite=False):
+def df_save(df, path, name, save_index=False, append_size=True, overwrite=False, zip=False):
     import os
 
     name = name.replace('/', '_')
@@ -226,7 +227,8 @@ def df_save(df, path, name, save_index=False, append_size=True, overwrite=False)
     if not os.path.isdir(path):
         make_folder(path)
 
-    filename = path + '/' + name + middle + '.csv'
+    ext = '.zip' if zip else '.csv'
+    filename = path + '/' + name + middle + ext
 
     if os.path.isfile(filename):
         print('** File {} already exists **'.format(filename))
@@ -234,8 +236,11 @@ def df_save(df, path, name, save_index=False, append_size=True, overwrite=False)
             print(' Skipping. Set overwrite=True for overwrite')
             return filename
 
-    mlog('Saving dataset: {}'.format(filename))
-    df.to_csv(filename, index=save_index, sep=';')
+    print('Saving dataset: {}'.format(filename))
+    if zip:
+        df.to_csv(filename, index=save_index, sep=';', compression='zip')
+    else:
+        df.to_csv(filename, index=save_index, sep=';')
 
     return filename
 
@@ -352,7 +357,7 @@ def json_update_file(path, dic):
         j.update(dic)
     else:
         j = dic
-    json_save(j, path)
+    json_save(j, path, overwrite=True)
 
 
 def get_iso_week_from_date(date):
@@ -404,7 +409,6 @@ def make_folders(folder):
     for i in range(1, len(folds) + 1):
         acc = '/'.join(folds[:i])
         make_folder(acc)
-
 
 
 def time_from_quarter(y, q):

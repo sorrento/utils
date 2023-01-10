@@ -273,7 +273,7 @@ def plot_hist2(pred, y_test, ax, msg='', th=None, log=False):
     ax.legend()
 
 
-def plot_roc(pred, y_test, th=None):
+def plot_roc(pred, y_test, th=None, show=True):
     cm = None
     fpr, tpr, _ = roc_curve(y_test, pred.p1)
     rocauc = me.roc_auc_score(y_true=y_test, y_score=pred.p1)
@@ -300,7 +300,8 @@ def plot_roc(pred, y_test, th=None):
         print('** For threshold  ', txt(th), ',')
         print(str(100 * round(ejx, 2)) + '% of NEGATIVE events were predicted INCORRECTLY (False Positive Rate)')
         print(str(100 * round(ejy, 2)) + '% of POSITIVE events were predicted CORRECTLY (True Positive Rate)')
-    plt.show()
+    if show:
+        plt.show()
 
     return cm
 

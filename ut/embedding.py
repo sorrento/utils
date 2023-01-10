@@ -28,14 +28,15 @@ def dim_reduction(vector_matrix, kwargs):
     """
 
     if kwargs.get("umap_metric") == 'hellinger':
-        umap_metric = hellinger  # todo me falla, porque parece que recibe 4 argumentos...
+        # umap_metric = hellinger  # todo me falla, porque parece que recibe 4 argumentos...
+        pass
     elif kwargs.get("umap_metric") == 'cosine':
         umap_metric = 'cosine'
     else:
         raise exceptions.ValidationError(
             f"Metric {kwargs.get('umap_metric')} is not valid. Use only 'cosine' or 'hellinger'")
 
-    umap_reductor = UMAP(
+    umap_reductor = umap(
         n_neighbors=kwargs.get("umap_n_neighbors"),
         random_state=42,
         metric=umap_metric,
@@ -67,8 +68,8 @@ def plot_umap_feature(df, df_map, variable):
     plt.show()
 
 
-def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=None, filename='',
-              apply_log=False, quantile_cut=None, point_size=0.2, **params):
+def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=None, filename='', folder='',
+              apply_log=False, quantile_cut=None, point_size=0.2, anomaly=False, **params):
     """
     Realiza una gráfica del embedding
 
@@ -93,6 +94,7 @@ def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=Non
         para pintar ponermos los valores más allá de los cuantiles a los valores de los cuantiles. valor entre cero y uno
     params:
         folder,
+        :param apply_log:
     """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
@@ -106,13 +108,28 @@ def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=Non
             print('**ERROR: la columna {} no se encuentra en el dataset'.format(column_to_colour))
             return None
         max_values = 50
-        categorical = len(df[column_to_colour].value_counts()) < max_values
+        n_values = len(df[column_to_colour].value_counts())
+        categorical = n_values < max_values
 
         if categorical:
             print('is categorical')
             df_2[column_to_colour] = df_2[column_to_colour].astype('category')
-            scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=df_2[column_to_colour].cat.codes, cmap="Set1",
-                                 alpha=0.5)
+
+            if anomaly:
+                df_2[column_to_colour] = df_2[column_to_colour].astype('boolean')
+                ceros = df_2[~df_2[column_to_colour]]
+                unos = df_2[df_2[column_to_colour]]
+                scatter = ax.scatter(ceros['UMAP_x'], ceros['UMAP_y'],
+                                     c='gray',
+                                     alpha=0.3, s=point_size)
+
+                scatter = ax.scatter(unos['UMAP_x'], unos['UMAP_y'],
+                                     c='red',
+                                     alpha=0.9, s=point_size + 2)
+
+            else:
+                scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=df_2[column_to_colour].cat.codes, cmap="Set1",
+                                     alpha=0.5, s=point_size)
         else:
 
             if quantile_cut is not None:
@@ -147,10 +164,6 @@ def plot_umap(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=Non
     plt.ylabel('Y_UMAP')
 
     if write_png:
-        if 'folder' in params:
-            folder = params['folder']
-        else:
-            folder = ''
         plot_save(write_png, folder, filename)
     plt.show()
 
@@ -431,103 +444,3 @@ lo almacena en el diccionario di que se le da para actualizarlo
 
 def as_df(array, index):
     return pd.DataFrame(array, columns=['UMAP_x', 'UMAP_y'], index=index)
-
-
-def plot_umap_anomaly(df, title='', x=18.5, y=10.5, write_png=True, column_to_colour=None, filename='', folder='',
-              apply_log=False, quantile_cut=None, point_size=0.2, anomaly=False, **params):
-    """
-    Realiza una gráfica del embedding
-
-    Parameters
-    ----------
-    df: pandas df
-        Dataframe que contiene las columnas UMAP_x and UMAP_y. Si se proporcionan otras columnas
-        se pintarán sobre el embedding (categóricas o numéricas)
-    title: str
-        Título de la gráfica
-    x: float
-        Dimensión x del tamaño de la gráfica
-    y: float
-        Dimensión y del tamaño de la gráfica
-    write_png: bool
-        Guardar el plot en fichero
-    column_to_colour: str
-        Nombre de la columna a pintar sobre el embedding. Debe ser parte de df
-    apply_log. boolean
-        si se colorea por variable, si se debe aplicar abslog antes
-    quentile_cut: float
-        para pintar ponermos los valores más allá de los cuantiles a los valores de los cuantiles. valor entre cero y uno
-    params:
-        folder,
-        :param apply_log:
-    """
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    fig.set_size_inches(x, y)
-
-    df_2 = df.copy()
-    if column_to_colour is None:
-        scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=[0] * len(df), alpha=0.5)
-    else:
-        if column_to_colour not in df.columns:
-            print('**ERROR: la columna {} no se encuentra en el dataset'.format(column_to_colour))
-            return None
-        max_values = 50
-        n_values = len(df[column_to_colour].value_counts())
-        categorical = n_values < max_values
-
-        if categorical:
-            print('is categorical')
-            df_2[column_to_colour] = df_2[column_to_colour].astype('category')
-
-            if anomaly:
-                df_2[column_to_colour] = df_2[column_to_colour].astype('boolean')
-                ceros = df_2[~df_2[column_to_colour]]
-                unos = df_2[df_2[column_to_colour]]
-                scatter = ax.scatter(ceros['UMAP_x'], ceros['UMAP_y'],
-                                     c='gray',
-                                     alpha=0.1, s=point_size)
-
-                scatter = ax.scatter(unos['UMAP_x'], unos['UMAP_y'],
-                                     c='red',
-                                     alpha=0.9, s=point_size + 2)
-
-            else:
-                scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=df_2[column_to_colour].cat.codes, cmap="Set1",
-                                     alpha=0.5, s=point_size)
-        else:
-
-            if quantile_cut is not None:
-                qs = df_2[column_to_colour].quantile([quantile_cut, 1 - quantile_cut])
-                qmin = qs.iloc[0]
-                qmax = qs.iloc[1]
-                print('quantiles:', qs)
-
-                df_2.loc[df_2[column_to_colour] < qmin, column_to_colour] = qmin
-                df_2.loc[df_2[column_to_colour] > qmax, column_to_colour] = qmax
-
-            if apply_log:
-                colour_ = df_2[column_to_colour].apply(abslog)
-                pre = 'log10_'
-            else:
-                colour_ = df_2[column_to_colour]
-                pre = ''
-
-            scatter = ax.scatter(df_2['UMAP_x'], df_2['UMAP_y'], c=colour_, alpha=0.5, s=point_size,
-                                 cmap='viridis')  # RdYlGn')
-            legend1 = ax.legend(*scatter.legend_elements(), loc="best", title=pre + "valor")
-            ax.add_artist(legend1)
-
-    # produce a legend with the unique colors from the scatter
-    legend1 = ax.legend(*scatter.legend_elements(), loc="best", title="Cluster")
-    ax.add_artist(legend1)
-
-    n_samples = str(df_2.shape[0])
-    plt.title(title + ' Samples ' + n_samples)
-
-    plt.xlabel('X_UMAP')
-    plt.ylabel('Y_UMAP')
-
-    if write_png:
-        plot_save(write_png, folder, filename)
-    plt.show()

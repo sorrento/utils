@@ -1,5 +1,6 @@
 import pandas as pd
 
+from plots import plot_save
 from ut.base import df_save, json_update_file, json_read, make_folder
 from ut.io import lista_files_recursiva, get_filename
 
@@ -11,14 +12,22 @@ class Comparator:
         self.path = make_folder(path, delete_if_exists=reset_if_exists)  # ruta general
         self._i = self.get_last_index() + 1
         print(f'el nuevo índice es {self._i}')
+        self._create_fold()
+
+    def _create_fold(self):
         self.path_exp = make_folder(self.path + str(self._i).zfill(3))  # ruta del experimento en particular
 
     def add_item(self, params):
         print(f'este item es {str(self._i)}')
         json_update_file(self.path + PARAMS_JSON, {self._i: params})
+        self._i = self._i + 1
 
-    def save_df(self, df, name, save_index=False):
+    def save_df(self, df, name, save_index=False, zip=True):
+        self._create_fold()
         df_save(df, self.path_exp, name, save_index=save_index, append_size=False)
+
+    def save_plot(self, name):
+        plot_save(write_png=True, folder=self.path_exp, filename=name)
 
     def get_dfs(self):
         files = lista_files_recursiva(self.path_exp, 'csv')
